@@ -81,7 +81,7 @@ taxa.raw <- taxa.raw[-which(rownames(taxa.raw) %in% low.depth.samples$Sample),]
 dim(taxa.raw)
 ```
 
-
+#### Filter low abundant bacterial data
 ```{r}
 ### Filter low abundant bacterial data
 filter.index1 <- apply(taxa.raw,2,function(X){sum(X>0)>0.4*length(X)})
