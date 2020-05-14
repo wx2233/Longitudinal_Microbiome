@@ -1,0 +1,187 @@
+---
+title: "Test with genus abundance data "
+author: "Weijia Xiong"
+date: "5/14/2020"
+output: pdf_document
+---
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,message = FALSE, warning = FALSE)
+library(readxl)
+library(tidyverse)
+```
+
+## Real data 
+
+From https://github.com/chvlyl/PLEASE
+
+Inflammation, Antibiotics, and Diet as Environmental Stressors of the Gut Microbiome in Pediatric Crohn’s Disease. Cell Host & Microbe. 2015
+
+
+### Load the raw data
+
+The "unclassfied" taxa were removed and the total relative abundance in each sample were normalized to be one. "P","F","G","S" at the beginning of each file indicate taxonomic levels "phylum", "family", "genus", "species".
+
+We use genus abundance data.
+```{r}
+PLEASE.raw = 
+  read_excel("./real data/G_Remove_unclassfied_Renormalized_Merge_Rel_MetaPhlAn_Result.xlsx",
+             col_names = T) %>% 
+  as.data.frame() 
+row.names(PLEASE.raw) = PLEASE.raw[,1]
+PLEASE.raw = PLEASE.raw[,-1]
+colname = as.numeric(colnames(PLEASE.raw))
+samplepoint = as.Date(colname,origin = "1900-01-01")
+head(PLEASE.raw[,1:5])
+```
+
+
+```{r}
+taxa.raw <- data.frame(t(PLEASE.raw),
+                       row.names = strtrim(samplepoint,7))
+
+### Make sure you load the data correctly
+cat('samples','taxa',dim(taxa.raw),'\n')
+taxa.raw[1:3,1:3]
+```
+
+Each row represent a sample.
+
+
+### Load total non-human read counts
+```{r}
+human.read.file <- './real data/please_combo_human_reads.xlsx'
+human.read <- 
+  read_excel(human.read.file, col_names = T) %>% 
+  as.data.frame() %>% 
+  mutate(
+    Sample = strtrim(as.Date(Sample,origin = "1900-01-01"),7)
+  )
+
+head(human.read)
+
+## first column: sample id
+```
+
+```{r}
+### Filter low depth samples (low non human reads)
+low.depth.samples <- subset(human.read,NonHumanReads<10000)
+head(low.depth.samples[,1:5])
+```
+
+
+```{r}
+### Delete these samples from PLEASE data.
+# row.names(taxa.raw)
+# row.names(low.depth.samples)
+row.names(taxa.raw)[which(row.names(taxa.raw) %in% low.depth.samples$Sample)]
+### Before deletion
+dim(taxa.raw)
+### After deletion
+taxa.raw <- taxa.raw[-which(rownames(taxa.raw) %in% low.depth.samples$Sample),]
+dim(taxa.raw)
+```
+
+
+```{r}
+### Filter low abundant bacterial data
+filter.index1 <- apply(taxa.raw,2,function(X){sum(X>0)>0.4*length(X)})
+filter.index2 <- apply(taxa.raw,2,function(X){quantile(X,0.9)>1})
+taxa.filter <- taxa.raw[,filter.index1 & filter.index2]
+taxa.filter <- 100*sweep(taxa.filter, 1, rowSums(taxa.filter), FUN="/")
+cat('after filter:','samples','taxa',dim(taxa.filter),'\n')
+cat(colnames(taxa.filter),'\n')
+head(rowSums(taxa.filter))
+```
+
+After filter, there remains 18 bacteria in the taxa table. 
+
+```{r}
+### 
+taxa.data <- taxa.filter
+dim(taxa.data)
+```
+
+
+### Load sample information
+```{r include=FALSE}
+# The processed clinical data and sample information
+
+# sample.info.file <- 'https://raw.githubusercontent.com/chvlyl/PLEASE/master/1_Data/Processed_Data/Sample_Information/2015_02_13_Processed_Sample_Information.csv'
+# sample.info <- read.csv(sample.info.file,row.names=1)
+
+sample.info.file = "real data/2015_02_13_Processed_Sample_Information.xlsx"
+sample.info <- 
+  read_excel(sample.info.file,col_names = T) %>% 
+  as.data.frame()
+colnames(sample.info) = replace(colnames(sample.info),1,"Sample")
+```
+
+```{r}
+head(sample.info)
+```
+
+
+#### create covariates, Time, Treatment(antiTNF+EEN)
+```{r}
+complete_subject =
+  sample.info %>% 
+  filter(Sample %in% rownames(taxa.data)) %>%
+  filter(Treatment.Specific!='PEN')%>%
+  dplyr::select(Sample,Time,Subject,Response,Treatment.Specific) %>%
+  group_by(Subject) %>% 
+  summarise(count = n()) %>% 
+  filter(count==4) 
+
+reg.cov = 
+  sample.info %>% 
+  filter(Subject %in%complete_subject$Subject) %>% 
+  mutate(Treat=ifelse(Treatment.Specific=='antiTNF',1,0)) %>%
+  dplyr::mutate(Subject=paste('S',Subject,sep='')) %>%
+  dplyr::mutate(Time=ifelse(Time=='1',0,ifelse(Time=='2',1,ifelse(Time=='3',4,ifelse(Time=='4',8,NA))))) %>%
+  dplyr::mutate(Time.X.Treatment=Time*Treat) %>%
+  dplyr::select(Sample,Subject,Time,Response,Treat,Time.X.Treatment,everything())
+```
+
+
+### take out first time point
+
+```{r}
+reg.cov.t1   <-  subset(reg.cov,Time==0)
+rownames(reg.cov.t1) <- reg.cov.t1$Subject
+
+reg.cov.t234 <-  subset(reg.cov,Time!=0)
+reg.cov.t234 <- data.frame(
+  baseline.sample=reg.cov.t1[reg.cov.t234$Subject,'Sample'],
+  baseline.subject=reg.cov.t1[reg.cov.t234$Subject,'Subject'],
+  reg.cov.t234,
+  stringsAsFactors = FALSE)
+
+head(reg.cov.t234)
+```
+
+
+
+
+```{r}
+taxa_all = colnames(taxa.data)
+store = function(taxa){
+# X: Baseline abundance time Treat
+# Y: Response abundance at time 1 4 8
+X <- data.frame(
+      Baseline=taxa.data[reg.cov.t234$baseline.sample,taxa]/100,
+      reg.cov.t234[,c('Time','Treat')])
+
+rownames(X) <- reg.cov.t234$Sample
+Y <- taxa.data[reg.cov.t234$Sample, taxa]/100
+
+return(list(X = X,  
+            Y = Y))
+}
+
+
+store_results = lapply(taxa_all, store)
+
+#example
+store_results[[1]]$X
+```
+
