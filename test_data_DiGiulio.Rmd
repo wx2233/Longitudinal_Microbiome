@@ -90,6 +90,9 @@ otu_covariate_all=
   cbind(sampledata, genus_abundance_filter_dat)
 
 head(otu_covariate_all[,1:9])
+
+colnames(otu_covariate_all) = replace(colnames(otu_covariate_all), 9:35,
+        sapply(1:27,function(x){str_c("genus_",x)}))
 ```
 
 Here each row represent one sample.
@@ -111,10 +114,27 @@ visit_data =
 ```
 
 ```{r}
-head(baseline_data[,1:9])
-head(visit_data[,1:9])
+head(baseline_data[,1:11])
+head(visit_data[,1:11])
 ```
 
 Not the same weeks for each subject.
 
 
+
+```{r}
+test_genus =
+  visit_data %>% 
+  pivot_longer(
+    genus_1:genus_5,
+    names_to = "genus_type",
+    names_prefix = "genus_",
+    values_to = "abundance"
+  )
+
+test_genus %>% 
+  ggplot(aes(x = weeks, y = abundance)) +
+  geom_point(aes(x = weeks, y = abundance, color = genus_type),alpha = 0.5) +
+  geom_line(aes(x = weeks, y = abundance, color = genus_type))
+  
+```
