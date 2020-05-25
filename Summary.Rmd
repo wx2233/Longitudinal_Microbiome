@@ -172,8 +172,8 @@ g__Ruminococcus) %>%
 ### Abundance plot
 ```{r}
 test_genus_Eriz %>% 
-  ggplot(aes(x = Time, y = abundance)) +
-  geom_point(aes(x = Time, y = abundance,color = genus_type),alpha = 0.8)
+  ggplot(aes(x = Time, y = abundance,fill = genus_type)) +
+  geom_bar(position="dodge", stat="identity",alpha = 0.8)
 ```
 
 
