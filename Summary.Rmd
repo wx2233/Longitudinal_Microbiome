@@ -1,0 +1,178 @@
+---
+title: "Summary"
+author: "Weijia Xiong"
+date: "5/25/2020"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 2
+header-includes:
+- \usepackage{fancyhdr}
+- \usepackage{lipsum}
+- \pagestyle{fancy}
+- \fancyhead[R]{\thepage}
+- \fancypagestyle{plain}{\pagestyle{fancy}}
+--- 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message = F,warning = F)
+library(tidyverse)
+library(kableExtra)
+load("Explore_DiGiulio.RData")
+load("Explore_Ericz.RData")
+```
+
+
+## DiGiulio
+
+The data is downloaded from https://github.com/nyiuab/NBZIMM/blob/master/data/DiGiulio.RData
+
+* Paper:
+
+1. DiGiulio D B, Callahan B J, McMurdie P J, et al. Temporal and spatial variation of the human microbiota during pregnancy[J]. Proceedings of the National Academy of Sciences, 2015, 112(35): 11060-11065.
+2. Zhang X, Yi N. Fast Zero-Inflated Negative Binomial Mixed Modeling Approach for Analyzing Longitudinal Metagenomics Data[J]. Bioinformatics, 2020.
+
+
+### Data summary
+
+DiGiulio’s Vaginal microbiome data is from 40 women. There are 927 samples(including covariates information) and 1271 OTU. Each woman has different observation weeks so it is not balanced.
+
+```{r}
+otu_covariate_all %>% 
+  group_by(Subject) %>% 
+  summarise(
+    obs_week_count = n()
+  )%>% 
+  head(10) %>% 
+  knitr::kable(
+    align = rep('c', 15),
+    longtable = T, 
+    booktabs = T, 
+    escape = T,
+    digit = 3
+  ) %>% 
+  kable_styling(
+    latex_options = c("hold_position","repeat_header")
+  )
+```
+
+I specify the taxonomic level genus and filter top 10% readsum genus. We can use other taxonomic level.
+
+* This is a part of baseline data set at genus level.
+```{r}
+baseline_data[1:10,1:11] %>% knitr::kable(
+    align = rep('c', 15),
+    longtable = F, 
+    booktabs = T, 
+    escape = T,
+    digit = 3
+  ) %>% 
+  kable_styling(
+    latex_options = c("hold_position","repeat_header","scale_down")
+  )
+```
+
+\newpage
+
+* This is a part of visit data set at genus level.
+
+```{r}
+visit_data[1:10,1:11] %>% knitr::kable(
+    align = rep('c', 15),
+    longtable = F, 
+    booktabs = T, 
+    escape = T,
+    digit = 3
+  ) %>% 
+  kable_styling(
+    latex_options = c("hold_position","repeat_header","scale_down")
+  )
+```
+
+
+### Abundance plot
+```{r}
+test_genus %>% 
+  ggplot(aes(x = weeks, y = abundance)) +
+  geom_point(aes(x = weeks, y = abundance, color = genus_type),alpha = 0.5) +
+  geom_line(aes(x = weeks, y = abundance, color = genus_type))
+  
+```
+
+
+The code of data manipulation can be found at https://github.com/wx2233/Longitudinal_Microbiome/blob/master/test_data_DiGiulio.Rmd
+
+
+
+
+\newpage
+
+## Eriz Z.
+
+We gain the Gut Microbiome data from https://github.com/chvlyl/PLEASE.
+
+* Paper:
+
+1. Chen E Z, Li H. A two-part mixed-effects model for analyzing longitudinal microbiome compositional data[J]. Bioinformatics, 2016, 32(17): 2611-2617.
+
+2. Lewis J D, Chen E Z, Baldassano R N, et al. Inflammation, antibiotics, and diet as environmental stressors of the gut microbiome in pediatric Crohn’s disease[J]. Cell host & microbe, 2015, 18(4): 489-500.
+
+
+### Data Summary
+
+These data are collected from 86 children. There are 335 samples and 105 genus in raw data. After filtering low depth samples (low non human reads) and combining the information covariates, there are 236 samples with 59 subjects. The observation time are the same (baseline, 1 week, 4 weeks, and 8 weeks). So it is balanced.
+
+
+* This is a part of baseline data set at genus level.
+
+```{r}
+baseline_set[1:10,] %>% 
+  select(Sample,Subject,Time, Response, Treat, Cluster,FCP,
+PCDAI,PUCAI,NonHumanReads,g__Bacteroides,
+g__Ruminococcus) %>% 
+  knitr::kable(
+    align = rep('c', 50),
+    longtable = F, 
+    booktabs = T, 
+    escape = T,
+    digit = 3
+  ) %>% 
+  kable_styling(
+    latex_options = c("hold_position","repeat_header","scale_down")
+  )
+```
+
+
+
+
+
+* This is a part of visit data set at genus level.
+
+```{r}
+visit_set[1:10,] %>% 
+  select(Sample,Subject,Time, Response, Treat, Cluster,FCP,
+PCDAI,PUCAI,NonHumanReads,g__Bacteroides,
+g__Ruminococcus) %>% 
+  knitr::kable(
+    align = rep('c', 50),
+    longtable = F, 
+    booktabs = T, 
+    escape = T,
+    digit = 3
+  ) %>% 
+  kable_styling(
+    latex_options = c("hold_position","repeat_header","scale_down")
+  )
+```
+
+
+
+### Abundance plot
+```{r}
+test_genus_Eriz %>% 
+  ggplot(aes(x = Time, y = abundance)) +
+  geom_bar(stat="identity",aes(x = Time, y = abundance,fill = genus_type),alpha = 0.8)
+```
+
+
+The code of data manipulation can be found at https://github.com/wx2233/Longitudinal_Microbiome/blob/master/test_data_EricZ.Rmd

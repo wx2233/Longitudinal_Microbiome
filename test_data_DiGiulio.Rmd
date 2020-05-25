@@ -16,7 +16,9 @@ library(tidyverse)
 library(stringr)
 ```
 
+Hi Weijia, Can you provide a summary of the real data that you explored, including number of patients, how many time points for each of them, are they balanced, etc? Basically, some exploratory data summary/analysis.
 
+DiGiulio’s Vaginal microbiome data is from 40 women. There are 927 samples and 1271 OTU. Each woman has different observation weeks so it is not balanced.
 
 ## Load dataset
 ```{r}
@@ -124,7 +126,7 @@ Not the same weeks for each subject.
 
 ```{r}
 test_genus =
-  visit_data %>% 
+  otu_covariate_all %>% 
   pivot_longer(
     genus_1:genus_5,
     names_to = "genus_type",
@@ -138,3 +140,9 @@ test_genus %>%
   geom_line(aes(x = weeks, y = abundance, color = genus_type))
   
 ```
+
+
+```{r}
+save.image(file = "Explore_DiGiulio.RData")
+```
+

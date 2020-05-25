@@ -172,7 +172,10 @@ X <- data.frame(
       reg.cov.t234[,c('Time','Treat')])
 
 rownames(X) <- reg.cov.t234$Sample
-Y <- taxa.data[reg.cov.t234$Sample, taxa]/100
+Y <- data.frame(
+      Abundance=taxa.data[reg.cov.t234$Sample, taxa]/100,
+      reg.cov.t234[,c('Time','Treat')])
+
 
 return(list(X = X,  
             Y = Y))
@@ -180,8 +183,38 @@ return(list(X = X,
 
 
 store_results = lapply(taxa_all, store)
-
+names(store_results) = taxa_all
 #example
-store_results[[1]]$X
+
+head(store_results$g__Bacteroides$X)
 ```
+
+
+
+```{r}
+all_set = cbind(reg.cov,taxa.data[reg.cov$Sample,])
+baseline_set = cbind(reg.cov.t1, taxa.data[reg.cov.t1$Sample,])
+visit_set = cbind(reg.cov.t234, taxa.data[reg.cov.t234$Sample,])
+```
+
+
+```{r}
+test_genus_Eriz =
+  all_set %>% 
+  pivot_longer(
+    g__Bacteroides : g__Escherichia,
+    names_to = "genus_type",
+    names_prefix = "g__",
+    values_to = "abundance"
+  )
+
+test_genus_Eriz %>% 
+  ggplot(aes(x = Time, y = abundance)) +
+  geom_bar(stat="identity",aes(x = Time, y = abundance,fill = genus_type),alpha = 0.8)
+```
+
+```{r}
+save.image(file = "Explore_EricZ.RData")
+```
+
 
